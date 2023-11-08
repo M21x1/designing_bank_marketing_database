@@ -1,0 +1,167 @@
+import pandas as pd
+import numpy as np
+
+# Start coding here...
+
+# First instruction:
+
+bank_marketing_df = pd.read_csv('bank_marketing.csv')
+#bank_marketing_df.head()
+
+# Second intruction
+
+client_col = ['client_id', 'age', 'job', 'marital', 'education','credit_default', 'housing', 'loan']
+campaign_col = ['client_id', 'campaign', 'duration', 'pdays', 'previous', 'poutcome', 'y', 'month', 'day']
+economics_col = ['client_id', 'emp_var_rate', 'cons_price_idx', 'euribor3m', 'nr_employed']
+
+clients = bank_marketing_df[client_col]
+campaigns = bank_marketing_df[campaign_col]
+economics = bank_marketing_df[economics_col]
+
+# Third intruction
+
+# In the clients DataFrame
+clients.rename(columns={'client_id': 'id'}, inplace=True)
+
+# In campaigns DataFrame
+campaigns.rename(columns={ 
+                        'duration' : 'contact_duration',
+                        'previous' : 'previous_campaign_contacts',
+                        'y':'campaign_outcome',
+                        'poutcome':'previous_outcome',
+                        'campaign':'number_contacts'
+                        }, inplace=True)
+
+# In economics DataFrame
+economics.rename(columns={
+                        'euribor3m':'euribor_three_months',
+                        'nr_employed':'number_employed'
+                        }, inplace=True)
+
+#print("Clients\n{}\n\nCampaigns\n{}\n\nEconomics\n{}\n".format(clients.head(), campaigns.head(), economics.head()))
+
+# Fourth instruction
+
+clients['education'] = clients['education'].str.replace('\.','_')
+clients['education'] = clients['education'].replace('unknown',np.nan, inplace=True)
+
+# Check for . and 'unknown'
+to_check=['.', 'unknown']
+counter_dot = clients['education'].str.contains(to_check[0]).sum()
+counter_unknown = (clients['education'] == to_check[1]).sum()
+
+if counter_dot == 0 and counter_unknown == 0:
+    print("Education's column is clean.")
+else:
+    print("Education's column has still {} dot(s). and {} unknown(s) values".format(counter_dot, counter_unknown))
+    
+# Fifth instruction
+
+clients['job'] = clients['job'].str.replace('.', '')
+
+# To find a "." and stop ASAP 
+if '.' not in clients['job'].values:
+    print("There are no dots in the job's column.")
+else: 
+    print("There are still dots in the job's column.")
+
+# sixth instruction
+
+campaigns['previous_outcome'] = campaigns['previous_outcome'].map({'success':1, 'failure':0})
+campaigns['campaign_outcome'] = campaigns['campaign_outcome'].map({'success':1, 'failure':0})
+
+campaigns['previous_outcome'] = campaigns['previous_outcome'].replace('nonexistent', np.nan, inplace=True)
+
+if ("success" or "failure") not in campaigns['previous_outcome'].values and\
+    ("success" or "failure") not in campaigns['campaign_outcome'].values and\
+    ("nonexistent") not in campaigns['previous_outcome'].values:
+    print("Columns were converted and changed successfully!")
+else:
+    print("Columns were not converted successfully!")
+    
+# Seventh instruction
+
+campaigns['campaign_id'] = 1
+
+# Eighth instruction
+
+# We fix the year to 2022
+campaigns['year'] = 2022
+
+# to create the last_contact_date colum
+campaigns['last_contact_date'] = pd.to_datetime(
+                                campaigns['year'].astype(str) + '-' +
+                                campaigns['month'].astype(str) + '-' +
+                                campaigns['day'].astype(str),
+                                errors = 'coerce')
+# Check if column last_contact_date was created
+
+if 'last_contact_date' in campaigns.columns:
+    print('The column was created!')
+else:
+    print('The column was not created!')
+    
+# Ninth instruction
+
+campaigns = campaigns.drop(['year', 'month', 'day'], axis=1)
+
+#print("Clients\n{}\n\nCampaigns\n{}\n\nEconomics\n{}\n".format(clients.head(), campaigns.head(), economics.head()))
+
+# Tenth instruction
+
+clients.to_csv('client.csv', index=False)
+clients.to_csv('campaign.csv', index=False)
+clients.to_csv('economics.csv', index=False)
+
+# Eleventh instruction
+
+#print(clients.head())
+
+client_table = '''
+                CREATE TABLE client (
+                id SERIAL PRIMARY KEY,
+                age INT,
+                job TEXT,
+                marital TEXT,
+                education TEXT,
+                credit_default BOOLEAN,
+                housing BOOLEAN,
+                loan BOOLEAN
+                );
+-- To SQL table from CSV file
+\copy client FROM 'client.csv' DELIMITER ',' CSV HEADER;
+                '''
+# Twelfth instruction
+
+#print(campaigns.head())
+
+campaign_table = '''
+                CREATE TABLE campaign (
+                campaign_id SERIAL PRIMARY KEY,
+                client_id SERIAL REFERENCES client(id),
+                number_contacts INT,
+                contact_duration INT,
+                pdays INT,
+                previous_campaign_contacts INT,
+                previous_outcome BOOLEAN,
+                campaign_outcome BOOLEAN,
+                last_contact_date DATE
+                );
+-- To SQL table from CSV file
+\copy campaign FROM 'campaign.csv' DELIMITER ',' CSV HEADER;
+'''
+
+# Thirteenth instruction
+
+#print(economics.head())
+
+economics_table = '''
+                CREATE TABLE economics (
+                client_id SERIAL REFERENCES client (id),
+                emp_var_rate FLOAT,
+                cons_price_idx FLOAT,
+                euribor_three_months FLOAT,
+                number_employed FLOAT);
+-- To SQL table from CSV file
+\copy economics FROM 'economics.csv' DELIMITER ',' CSV HEADER;
+'''
